@@ -1,17 +1,24 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-// Generate JWT Token
+// Generate JWT Token with sensible defaults for production
 const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE,
-    });
+    const secret = process.env.JWT_SECRET || 'fallback_secret_for_dev_only';
+    const expiresIn = process.env.JWT_EXPIRE || '7d'; // Default to 7 days if not set
+
+    try {
+        return jwt.sign({ id }, secret, { expiresIn });
+    } catch (error) {
+        console.error('❌ JWT Sign Error:', error.message);
+        throw new Error('Token generation failed');
+    }
 };
 
-// Validate email format
+// Validate email format and trim whitespace
 const isValidEmail = (email) => {
+    if (!email) return false;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(email.trim().toLowerCase());
 };
 
 // @desc    Register new user

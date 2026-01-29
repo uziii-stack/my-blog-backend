@@ -12,11 +12,32 @@ connectDB();
 
 // ===== MIDDLEWARE =====
 
-// CORS configuration
+// CORS configuration - Vital for production (GitHub Pages + Railway)
+const allowedOrigins = [
+    'https://uziii-stack.github.io',
+    'http://localhost:8080',
+    'http://localhost:5000',
+    'http://127.0.0.1:8080'
+];
+
 const corsOptions = {
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+            callback(null, true);
+        } else {
+            console.warn(`🔒 CORS Blocked for origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    optionsSuccessStatus: 200 // Some legacy browsers (IE11, various SmartTVs) choke on 204
 };
+
 app.use(cors(corsOptions));
 
 // Logging - only in development
@@ -30,6 +51,10 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from uploads folder
 app.use('/uploads', express.static('uploads'));
+
+// Serve frontend static files
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 // ===== ROUTES =====
 app.use('/api/auth', require('./routes/authRoutes'));

@@ -4,15 +4,19 @@ const {
     createPost,
     getAllPosts,
     getPost,
+    getLatestPosts,
     updatePost,
     deletePost,
 } = require('../controllers/postController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
+const cors = require('cors');
+
 // Public routes
-router.get('/', getAllPosts);
-router.get('/:id', getPost);
+router.get('/', cors({ origin: true }), getAllPosts);
+router.get('/latest', cors({ origin: true }), getLatestPosts);
+router.get('/:id', cors({ origin: true }), getPost);
 
 // Protected routes
 router.post('/', protect, upload.single('image'), createPost);

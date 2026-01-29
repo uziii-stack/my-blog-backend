@@ -1,11 +1,11 @@
-# 🚀 Cortellect Blogs - Premium Full-Stack CMS
+# 🚀 Uzair’s BlogHub - Premium Full-Stack CMS
 
 [![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 
-**Cortellect Blogs** is a high-performance, recruiter-ready blogging platform designed with a focus on **Premium UI/UX** and **Scalable Backend Architecture**. It features a modern design system including Glassmorphism, smooth animations, and a fully dynamic CMS backend.
+**Uzair’s BlogHub** is a high-performance, recruiter-ready blogging platform designed with a focus on **Premium UI/UX** and **Scalable Backend Architecture**. It features a modern design system including Glassmorphism, smooth animations, and a fully dynamic CMS backend.
 
 ---
 

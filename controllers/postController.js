@@ -48,7 +48,7 @@ exports.createPost = async (req, res, next) => {
 // @access  Public
 exports.getAllPosts = async (req, res, next) => {
     try {
-        const { category, published } = req.query;
+        const { category, published, limit } = req.query;
 
         // Build query
         let query = {};
@@ -57,21 +57,76 @@ exports.getAllPosts = async (req, res, next) => {
             query.category = category;
         }
 
-        if (published !== undefined) {
-            query.published = published === 'true';
+        // Revert: Only filter by published if explicitly requested
+        if (published === 'true') {
+            query.published = true;
+        } else if (published === 'false') {
+            query.published = false;
         }
+
+        // Apply limit if provided
+        const finalLimit = limit ? parseInt(limit) : 0;
 
         const posts = await Post.find(query)
             .populate('author', 'name email')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .limit(finalLimit);
+
+        // Maintain response format for both legacy and new consumers
+        const formattedPosts = posts.map(post => ({
+            id: post._id,
+            _id: post._id,
+            title: post.title,
+            slug: post.slug,
+            excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
+            content: post.content,
+            category: post.category,
+            tags: post.category ? [post.category] : [],
+            coverImage: post.image,
+            image: post.image,
+            published: post.published,
+            publishedAt: post.createdAt,
+            createdAt: post.createdAt,
+            author: post.author
+        }));
 
         res.status(200).json({
             success: true,
-            count: posts.length,
-            posts: posts, // Frontend expects 'posts' key
+            count: formattedPosts.length,
+            posts: formattedPosts,
         });
     } catch (error) {
         console.error('Error fetching posts:', error.message);
+        next(error);
+    }
+};
+
+// @desc    Get latest 3 published posts
+// @route   GET /api/posts/latest
+// @access  Public
+exports.getLatestPosts = async (req, res, next) => {
+    try {
+        const posts = await Post.find({ published: true })
+            .sort({ createdAt: -1 })
+            .limit(3)
+            .select('_id title content image createdAt slug');
+
+        // Transform for a clean "data" contract as requested
+        const formattedPosts = posts.map(post => ({
+            _id: post._id,
+            title: post.title,
+            excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
+            image: post.image,
+            createdAt: post.createdAt,
+            slug: post.slug
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: formattedPosts
+        });
+    } catch (error) {
+        console.error('Error fetching latest posts:', error.message);
         next(error);
     }
 };
