@@ -1,4 +1,6 @@
 const Post = require('../models/Post');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // @desc    Create a new post
 // @route   POST /api/posts
@@ -15,14 +17,35 @@ exports.createPost = async (req, res, next) => {
             });
         }
 
-        // Add image path if file was uploaded
-        const image = req.file ? `/${req.file.path.replace(/\\/g, '/')}` : '';
+        // Upload image to Cloudinary if file was uploaded
+        let image = '';
+        let cloudinaryId = '';
+
+        if (req.file) {
+            try {
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'blog_posts',
+                });
+                image = result.secure_url;
+                cloudinaryId = result.public_id;
+
+                // Delete local temp file
+                fs.unlinkSync(req.file.path);
+            } catch (error) {
+                console.error('Cloudinary upload error:', error.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Error uploading image to Cloudinary',
+                });
+            }
+        }
 
         const post = await Post.create({
             title,
             content,
             category,
             image,
+            cloudinaryId,
             published: published === 'true' || published === true,
             author: req.user._id,
         });
@@ -182,7 +205,27 @@ exports.updatePost = async (req, res, next) => {
 
         // Update image if new file was uploaded
         if (req.file) {
-            req.body.image = `/${req.file.path.replace(/\\/g, '/')}`;
+            try {
+                // Delete old image from Cloudinary if it exists
+                if (post.cloudinaryId) {
+                    await cloudinary.uploader.destroy(post.cloudinaryId);
+                }
+
+                const result = await cloudinary.uploader.upload(req.file.path, {
+                    folder: 'blog_posts',
+                });
+                req.body.image = result.secure_url;
+                req.body.cloudinaryId = result.public_id;
+
+                // Delete local temp file
+                fs.unlinkSync(req.file.path);
+            } catch (error) {
+                console.error('Cloudinary update error:', error.message);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Error updating image on Cloudinary',
+                });
+            }
         }
 
         // Handle published field
@@ -228,6 +271,16 @@ exports.deletePost = async (req, res, next) => {
                 success: false,
                 message: 'Not authorized to delete this post',
             });
+        }
+
+        // Delete image from Cloudinary if it exists
+        if (post.cloudinaryId) {
+            try {
+                await cloudinary.uploader.destroy(post.cloudinaryId);
+            } catch (error) {
+                console.error('Cloudinary deletion error:', error.message);
+                // Continue with post deletion anyway
+            }
         }
 
         await post.deleteOne();

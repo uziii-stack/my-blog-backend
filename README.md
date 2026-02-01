@@ -25,7 +25,7 @@
 #### ⚙️ Scalable Backend
 - **JWT Authentication:** Secure admin login with encrypted token management.
 - **MVC Architecture:** Clean separation of concerns for easy scalability.
-- **Image Processing:** Integrated Multer for efficient multipart/form-data handling.
+- **Image Processing:** Integrated Multer & Cloudinary SDK for cloud-based image hosting.
 - **Searchable API:** Backend filtering by category and publication status.
 - **Automated Slugs:** SEO-friendly URL generation for every blog post.
 
@@ -39,7 +39,7 @@
 | **Backend** | Node.js, Express.js |
 | **Database** | MongoDB Atlas, Mongoose ODM |
 | **Security** | JWT, bcryptjs, CORS, Morgan Logging |
-| **Storage** | Multer for Local Image Persistence |
+| **Storage** | Cloudinary (Free Tier) for image hosting |
 
 ---
 
@@ -49,7 +49,7 @@
 graph TD
     A[Frontend: Vanilla JS/HTML/CSS] -->|REST API| B[Backend: Node/Express]
     B -->|Mongoose| C[Database: MongoDB Atlas]
-    B -->|Multer| D[Storage: /uploads]
+    B -->|Cloudinary SDK| D[Storage: Cloudinary]
     B -->|Auth| E[JWT / bcryptjs]
 ```
 
@@ -72,7 +72,15 @@ MONGODB_URI=your_mongodb_cluster_uri
 JWT_SECRET=your_secure_secret
 JWT_EXPIRE=7d
 CORS_ORIGIN=http://localhost:8080
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
+
+### 3️⃣ Cloudinary Setup
+1. Create a free account at [Cloudinary](https://cloudinary.com/).
+2. Copy your **Cloud Name**, **API Key**, and **API Secret** from the Dashboard.
+3. Paste them into your `.env` file.
 
 ### 3️⃣ Initialize Admin
 ```bash
@@ -113,4 +121,19 @@ Access the site at: `http://localhost:8080`
 ## 📄 License
 MIT License - Developed with ❤️ for the developer community.
 
-**Last Updated:** January 2026
+---
+
+## 🚂 Railway Deployment
+1. Push your code to a GitHub repository.
+2. Login to [Railway.app](https://railway.app/).
+3. Click "New Project" > "Deploy from GitHub repo".
+4. Add all variables from your `.env` file to the Railway **Variables** tab.
+5. Railway will automatically detect the `start` script and deploy via Nixpacks.
+
+## 🔒 Security Best Practices
+- **API Keys:** Never commit your `.env` file to GitHub (it's already in `.gitignore`).
+- **Cloudinary:** Use the `api_secret` only on the backend.
+- **JWT:** Use a long, complex string for `JWT_SECRET`.
+- **Hiding Endpoints:** The project uses `protect` middleware to ensure only authenticated admins can create/delete posts.
+
+**Last Updated:** February 2026
