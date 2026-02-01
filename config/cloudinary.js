@@ -16,13 +16,20 @@ if (process.env.CLOUDINARY_URL) {
     });
 }
 
-// Log configuration status (without showing the secret)
+// --- DIAGNOSTIC LOGGING ---
+console.log('--- Cloudinary Environment Check ---');
+const foundVars = Object.keys(process.env).filter(key => key.toUpperCase().includes('CLOUDINARY'));
+if (foundVars.length > 0) {
+    foundVars.forEach(key => console.log(`🔍 Detected environment variable: ${key}`));
+} else {
+    console.error('❌ NO CLOUDINARY environment variables detected by Node.js!');
+}
+
 if (process.env.CLOUDINARY_URL) {
     console.log('✅ Cloudinary configured using CLOUDINARY_URL');
 } else if (process.env.CLOUDINARY_CLOUD_NAME) {
     console.log(`✅ Cloudinary configured using individual keys for cloud: ${process.env.CLOUDINARY_CLOUD_NAME}`);
-} else {
-    console.error('❌ Cloudinary Error: No configuration found!');
 }
+console.log('------------------------------------');
 
 module.exports = cloudinary;
