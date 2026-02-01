@@ -1,20 +1,8 @@
 const multer = require('multer');
 const path = require('path');
 
-// Configure storage
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        // Generate unique filename: image-<timestamp>-<random>.<ext>
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(
-            null,
-            file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)
-        );
-    },
-});
+// Configure storage to use memory (instead of disk) for Cloudinary/Railway compatibility
+const storage = multer.memoryStorage();
 
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {

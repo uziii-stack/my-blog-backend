@@ -2,6 +2,25 @@ const Post = require('../models/Post');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 
+/**
+ * Helper to upload image from memory buffer to Cloudinary
+ */
+const uploadFromBuffer = (file) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'blog_posts' },
+            (error, result) => {
+                if (result) {
+                    resolve(result);
+                } else {
+                    reject(error);
+                }
+            }
+        );
+        stream.end(file.buffer);
+    });
+};
+
 // @desc    Create a new post
 // @route   POST /api/posts
 // @access  Private
@@ -23,19 +42,14 @@ exports.createPost = async (req, res, next) => {
 
         if (req.file) {
             try {
-                const result = await cloudinary.uploader.upload(req.file.path, {
-                    folder: 'blog_posts',
-                });
+                const result = await uploadFromBuffer(req.file);
                 image = result.secure_url;
                 cloudinaryId = result.public_id;
-
-                // Delete local temp file
-                fs.unlinkSync(req.file.path);
             } catch (error) {
-                console.error('Cloudinary upload error:', error.message);
+                console.error('❌ Cloudinary Upload Error Details:', error);
                 return res.status(500).json({
                     success: false,
-                    message: 'Error uploading image to Cloudinary',
+                    message: `Cloudinary Upload Error: ${error.message || 'Unknown error'}`,
                 });
             }
         }
@@ -208,22 +222,21 @@ exports.updatePost = async (req, res, next) => {
             try {
                 // Delete old image from Cloudinary if it exists
                 if (post.cloudinaryId) {
-                    await cloudinary.uploader.destroy(post.cloudinaryId);
+                    try {
+                        await cloudinary.uploader.destroy(post.cloudinaryId);
+                    } catch (destroyErr) {
+                        console.warn('⚠️ Could not delete old image from Cloudinary:', destroyErr.message);
+                    }
                 }
 
-                const result = await cloudinary.uploader.upload(req.file.path, {
-                    folder: 'blog_posts',
-                });
+                const result = await uploadFromBuffer(req.file);
                 req.body.image = result.secure_url;
                 req.body.cloudinaryId = result.public_id;
-
-                // Delete local temp file
-                fs.unlinkSync(req.file.path);
             } catch (error) {
-                console.error('Cloudinary update error:', error.message);
+                console.error('❌ Cloudinary Update Error Details:', error);
                 return res.status(500).json({
                     success: false,
-                    message: 'Error updating image on Cloudinary',
+                    message: `Cloudinary Update Error: ${error.message || 'Unknown error'}`,
                 });
             }
         }
