@@ -12,6 +12,17 @@ connectDB();
 
 // ===== MIDDLEWARE =====
 
+// Trust proxy - CRITICAL for Railway/Heroku/AWS deployments
+// WHY: Railway uses reverse proxies, need to trust X-Forwarded-For header for rate limiting
+// Without this, all requests appear to come from the same IP (proxy IP)
+app.set('trust proxy', 1);
+
+// Global API Rate Limiter - prevents DDoS and abuse
+// WHY: Apply to ALL /api/* routes before anything else
+// Protects entire API surface from abuse while allowing normal usage
+const { apiRateLimiter } = require('./middleware/rateLimitMiddleware');
+app.use('/api', apiRateLimiter);
+
 // CORS configuration - Vital for production (GitHub Pages + Railway)
 const allowedOrigins = [
     'https://uziii-stack.github.io',
