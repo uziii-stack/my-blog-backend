@@ -50,8 +50,7 @@ const authRateLimiter = rateLimit({
     // Custom error message (user-friendly but doesn't leak system info)
     message: {
         success: false,
-        message: 'Too many login attempts from this IP. Please try again after 15 minutes.',
-        retryAfter: '15 minutes'
+        message: "We couldn't verify it's you right now. Please try again in a few minutes."
     },
 
     // Skip successful requests (only count failures)
@@ -67,8 +66,7 @@ const authRateLimiter = rateLimit({
         console.warn(`🚨 Rate limit exceeded for IP: ${req.ip} on ${req.originalUrl}`);
         res.status(429).json({
             success: false,
-            message: 'Too many login attempts from this IP. Please try again after 15 minutes.',
-            retryAfter: '15 minutes'
+            message: "We couldn't verify it's you right now. Please try again in a few minutes."
         });
     }
 });
