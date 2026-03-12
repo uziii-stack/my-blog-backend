@@ -94,8 +94,13 @@ exports.getAllPosts = async (req, res, next) => {
             query.category = category;
         }
 
-        // Enforce only published posts for public access
-        query.published = true;
+        // By default enforce published posts only to public
+        if (!req.user || req.user.role !== 'admin') {
+            query.published = true;
+        } else if (published !== undefined) {
+             // Admin specifically requested a published filter status
+             query.published = published === 'true';
+        }
 
         // Apply limit if provided
         const finalLimit = limit ? parseInt(limit) : 0;
@@ -181,8 +186,8 @@ exports.getPost = async (req, res, next) => {
             });
         }
 
-        // Enforce published check
-        if (!post.published) {
+        // Enforce published check for non-admins
+        if (!post.published && (!req.user || req.user.role !== 'admin')) {
             return res.status(403).json({
                 success: false,
                 message: 'Post is not published',

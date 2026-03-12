@@ -8,16 +8,16 @@ const {
     updatePost,
     deletePost,
 } = require('../controllers/postController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { adminOnly } = require('../middleware/adminMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 const cors = require('cors');
 
-// Public routes
-router.get('/', cors({ origin: true }), getAllPosts);
+// Public routes (with optional auth to detect admins)
+router.get('/', cors({ origin: true }), optionalAuth, getAllPosts);
 router.get('/latest', cors({ origin: true }), getLatestPosts);
-router.get('/:id', cors({ origin: true }), getPost);
+router.get('/:id', cors({ origin: true }), optionalAuth, getPost);
 
 // Protected routes - Admin only
 // WHY: CMS routes (create/edit/delete) should only be accessible to admins
