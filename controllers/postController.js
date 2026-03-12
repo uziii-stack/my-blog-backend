@@ -65,7 +65,7 @@ exports.createPost = async (req, res, next) => {
         });
 
         // Populate author for response
-        await post.populate('author', 'name email');
+        await post.populate('author', 'name');
 
         console.log(`✅ Post created: "${title}" by ${req.user.name}`);
 
@@ -105,7 +105,7 @@ exports.getAllPosts = async (req, res, next) => {
         const finalLimit = limit ? parseInt(limit) : 0;
 
         const posts = await Post.find(query)
-            .populate('author', 'name email')
+            .populate('author', 'name')
             .sort({ createdAt: -1 })
             .limit(finalLimit);
 
@@ -175,7 +175,7 @@ exports.getPost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id).populate(
             'author',
-            'name email'
+            'name'
         );
 
         if (!post) {
@@ -249,7 +249,7 @@ exports.updatePost = async (req, res, next) => {
         post = await Post.findByIdAndUpdate(req.params.id, req.body, {
             new: true,
             runValidators: true,
-        }).populate('author', 'name email');
+        }).populate('author', 'name');
 
         console.log(`✅ Post updated: "${post.title}" by ${req.user.name}`);
 
