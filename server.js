@@ -28,7 +28,8 @@ const allowedOrigins = [
     'https://uziii-stack.github.io',
     'http://localhost:8080',
     'http://localhost:5000',
-    'http://127.0.0.1:8080'
+    'http://127.0.0.1:8080',
+    'https://uzairbaig.netlify.app'
 ];
 
 const corsOptions = {
