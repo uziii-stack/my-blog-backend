@@ -82,11 +82,7 @@ CLOUDINARY_API_SECRET=your_api_secret
 2. Copy your **Cloud Name**, **API Key**, and **API Secret** from the Dashboard.
 3. Paste them into your `.env` file.
 
-### 3️⃣ Initialize Admin
-```bash
-npm run create-admin
-# Default: admin@blog.com / admin123
-```
+
 
 ### 4️⃣ Run Development Servers
 **Terminal 1 (Backend):**
