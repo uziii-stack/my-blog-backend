@@ -94,12 +94,8 @@ exports.getAllPosts = async (req, res, next) => {
             query.category = category;
         }
 
-        // Revert: Only filter by published if explicitly requested
-        if (published === 'true') {
-            query.published = true;
-        } else if (published === 'false') {
-            query.published = false;
-        }
+        // Enforce only published posts for public access
+        query.published = true;
 
         // Apply limit if provided
         const finalLimit = limit ? parseInt(limit) : 0;
@@ -182,6 +178,14 @@ exports.getPost = async (req, res, next) => {
             return res.status(404).json({
                 success: false,
                 message: 'Post not found',
+            });
+        }
+
+        // Enforce published check
+        if (!post.published) {
+            return res.status(403).json({
+                success: false,
+                message: 'Post is not published',
             });
         }
 

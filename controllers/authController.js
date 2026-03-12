@@ -163,3 +163,63 @@ exports.getMe = async (req, res, next) => {
         next(error);
     }
 };
+
+// @desc    Change user password
+// @route   POST /api/admin/change-password
+// @access  Private
+exports.changePassword = async (req, res, next) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Validation
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide both current and new password',
+            });
+        }
+
+        // Enforce strong password rules (min 8 chars, uppercase, number, special char)
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters long, contain at least one uppercase letter, one number, and one special character',
+            });
+        }
+
+        // Get user with password
+        const user = await User.findById(req.user.id).select('+password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
+
+        // Verify current password
+        const isMatch = await user.matchPassword(currentPassword);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Incorrect current password',
+            });
+        }
+
+        // Update password (triggers the pre-save hook to hash string)
+        user.password = newPassword;
+        await user.save();
+
+        console.log(`✅ Password changed for user: ${user.email}`);
+
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully',
+        });
+    } catch (error) {
+        console.error('Change password error:', error.message);
+        next(error);
+    }
+};

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe } = require('../controllers/authController');
+const { register, login, getMe, changePassword } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { authRateLimiter } = require('../middleware/rateLimitMiddleware');
 
@@ -12,5 +12,6 @@ router.post('/login', authRateLimiter, login);
 
 // Protected routes
 router.get('/me', protect, getMe);
+router.post('/admin/change-password', protect, changePassword);
 
 module.exports = router;
