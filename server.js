@@ -76,13 +76,7 @@ app.use('/api/posts', require('./routes/postRoutes'));
 app.get('/', (req, res) => {
     res.json({
         success: true,
-        message: 'Welcome to Blog CMS API',
-        version: '1.0.0',
-        endpoints: {
-            auth: '/api/auth',
-            posts: '/api/posts',
-        },
-        documentation: 'See README.md for API documentation',
+        message: 'Welcome to Blog CMS API'
     });
 });
 
