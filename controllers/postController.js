@@ -238,6 +238,8 @@ exports.getPostBySlug = async (req, res, next) => {
                 content: post.content,
                 coverImage: post.image,
                 publishedAt: post.createdAt,
+                createdAt: post.createdAt,
+                date: post.createdAt,
                 author: {
                     name: post.author.name
                 },
