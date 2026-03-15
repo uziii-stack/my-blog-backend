@@ -37,11 +37,35 @@ const postSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        ogTitle: {
+            type: String,
+            trim: true,
+        },
+        ogDescription: {
+            type: String,
+            trim: true,
+        },
+        ogImage: {
+            type: String,
+            trim: true,
+        },
+        twitterCardType: {
+            type: String,
+            default: 'summary_large_image',
+            trim: true,
+        },
+        canonicalUrl: {
+            type: String,
+            trim: true,
+        }
     },
     {
         timestamps: true,
     }
 );
+
+// Add index on slug for fast lookup
+postSchema.index({ slug: 1 });
 
 // Generate slug from title before saving
 postSchema.pre('save', function (next) {
