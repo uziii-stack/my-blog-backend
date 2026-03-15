@@ -204,6 +204,52 @@ exports.getPost = async (req, res, next) => {
     }
 };
 
+// @desc    Get single post by Slug
+// @route   GET /api/posts/:slug
+// @access  Public
+exports.getPostBySlug = async (req, res, next) => {
+    try {
+        const post = await Post.findOne({ slug: req.params.slug }).populate(
+            'author',
+            'name'
+        );
+
+        if (!post) {
+            return res.status(404).json({
+                success: false,
+                message: 'Post not found',
+            });
+        }
+
+        // Enforce published check for non-admins
+        if (!post.published && (!req.user || req.user.role !== 'admin')) {
+            return res.status(403).json({
+                success: false,
+                message: 'Post is not published',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            post: {
+                _id: post._id,
+                title: post.title,
+                slug: post.slug,
+                content: post.content,
+                coverImage: post.image,
+                publishedAt: post.createdAt,
+                author: {
+                    name: post.author.name
+                },
+                category: post.category
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching post by slug:', error.message);
+        next(error);
+    }
+};
+
 // @desc    Update post
 // @route   PUT /api/posts/:id
 // @access  Private
