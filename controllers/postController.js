@@ -230,12 +230,14 @@ exports.getPostBySlug = async (req, res, next) => {
         }
 
         // SEO & OG Fallback Logic
-        const siteUrl = process.env.SITE_URL || 'https://uzairbaig.netlify.app'; // Default fallback
         const ogTitle = post.ogTitle || post.title;
         const ogDescription = post.ogDescription || (post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...');
         const ogImage = post.ogImage || post.image;
         const twitterCardType = post.twitterCardType || 'summary_large_image';
-        const canonicalUrl = post.canonicalUrl || `${siteUrl}/blog/post.html?slug=${post.slug}`;
+
+        // Note: canonicalUrl is returned as slug only to support multi-client deployments.
+        // Frontends should construct the full URL based on their own domain.
+        const canonicalUrl = post.canonicalUrl || post.slug;
 
         res.status(200).json({
             success: true,
