@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "create-admin": "node create-admin.js"
+    "create-admin": "node create-admin.js",
+    "create-ghufran": "node create-ghufran.js"
   },
   "keywords": [
     "blog",

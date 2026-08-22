@@ -1,4 +1,6 @@
 const Post = require('../models/Post');
+const User = require('../models/User');
+const mongoose = require('mongoose');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 
@@ -85,7 +87,7 @@ exports.createPost = async (req, res, next) => {
 // @access  Public
 exports.getAllPosts = async (req, res, next) => {
     try {
-        const { category, published, limit } = req.query;
+        const { category, published, limit, author } = req.query;
 
         // Build query
         let query = {};
@@ -94,19 +96,54 @@ exports.getAllPosts = async (req, res, next) => {
             query.category = category;
         }
 
-        // By default enforce published posts only to public
-        if (!req.user || req.user.role !== 'admin') {
+        // Author filter support (by ObjectId, email, or name)
+        if (author) {
+            if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
+                query.author = author;
+            } else {
+                const authorUser = await User.findOne({
+                    $or: [
+                        { email: author.trim().toLowerCase() },
+                        { name: new RegExp(`^${author.trim()}$`, 'i') },
+                        { name: new RegExp(author.trim(), 'i') }
+                    ]
+                });
+                if (authorUser) {
+                    query.author = authorUser._id;
+                } else {
+                    query.author = new mongoose.Types.ObjectId(); // matches nothing
+                }
+            }
+        }
+
+        // Visibility control:
+        // - Admin: can see all posts (published and drafts)
+        // - Editor: can see all published posts + their own drafts
+        // - Public: can only see published posts
+        if (!req.user) {
             query.published = true;
-        } else if (published !== undefined) {
-             // Admin specifically requested a published filter status
-             query.published = published === 'true';
+        } else if (req.user.role === 'admin') {
+            if (published !== undefined) {
+                query.published = published === 'true';
+            }
+        } else if (req.user.role === 'editor') {
+            if (published !== undefined) {
+                query.published = published === 'true';
+                if (published === 'false') {
+                    query.author = req.user._id;
+                }
+            } else {
+                query.$or = [{ published: true }, { author: req.user._id }];
+            }
+        } else {
+            query.published = true;
         }
 
         // Apply limit if provided
         const finalLimit = limit ? parseInt(limit) : 0;
 
         const posts = await Post.find(query)
-            .populate('author', 'name')
+            .populate('author', 'name email')
             .sort({ createdAt: -1 })
             .limit(finalLimit);
 
@@ -144,7 +181,30 @@ exports.getAllPosts = async (req, res, next) => {
 // @access  Public
 exports.getLatestPosts = async (req, res, next) => {
     try {
-        const posts = await Post.find({ published: true })
+        const { author } = req.query;
+        let query = { published: true };
+
+        // Optional author filter support
+        if (author) {
+            if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
+                query.author = author;
+            } else {
+                const authorUser = await User.findOne({
+                    $or: [
+                        { email: author.trim().toLowerCase() },
+                        { name: new RegExp(`^${author.trim()}$`, 'i') },
+                        { name: new RegExp(author.trim(), 'i') }
+                    ]
+                });
+                if (authorUser) {
+                    query.author = authorUser._id;
+                } else {
+                    query.author = new mongoose.Types.ObjectId();
+                }
+            }
+        }
+
+        const posts = await Post.find(query)
             .sort({ createdAt: -1 })
             .limit(3)
             .select('_id title content image createdAt slug');
@@ -186,8 +246,12 @@ exports.getPost = async (req, res, next) => {
             });
         }
 
-        // Enforce published check for non-admins
-        if (!post.published && (!req.user || req.user.role !== 'admin')) {
+        // Enforce published check: allow admins and the post's author to view drafts
+        const isSuperAdmin = req.user && req.user.role === 'admin';
+        const postAuthorId = post.author ? (post.author._id || post.author) : null;
+        const isAuthor = req.user && postAuthorId && postAuthorId.toString() === req.user._id.toString();
+
+        if (!post.published && !isSuperAdmin && !isAuthor) {
             return res.status(403).json({
                 success: false,
                 message: 'Post is not published',
@@ -221,8 +285,12 @@ exports.getPostBySlug = async (req, res, next) => {
             });
         }
 
-        // Enforce published check for non-admins
-        if (!post.published && (!req.user || req.user.role !== 'admin')) {
+        // Enforce published check: allow admins and the post's author to view drafts
+        const isSuperAdmin = req.user && req.user.role === 'admin';
+        const postAuthorId = post.author ? (post.author._id || post.author) : null;
+        const isAuthor = req.user && postAuthorId && postAuthorId.toString() === req.user._id.toString();
+
+        if (!post.published && !isSuperAdmin && !isAuthor) {
             return res.status(403).json({
                 success: false,
                 message: 'Post is not published',
@@ -251,7 +319,7 @@ exports.getPostBySlug = async (req, res, next) => {
                 createdAt: post.createdAt,
                 date: post.createdAt,
                 author: {
-                    name: post.author.name
+                    name: post.author ? post.author.name : 'Unknown Author'
                 },
                 category: post.category,
                 ogTitle,
@@ -281,8 +349,11 @@ exports.updatePost = async (req, res, next) => {
             });
         }
 
-        // Check if user is the author
-        if (post.author.toString() !== req.user._id.toString()) {
+        // Check if user is superadmin or the author
+        const isSuperAdmin = req.user.role === 'admin';
+        const isAuthor = post.author && post.author.toString() === req.user._id.toString();
+
+        if (!isSuperAdmin && !isAuthor) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this post',
@@ -350,8 +421,11 @@ exports.deletePost = async (req, res, next) => {
             });
         }
 
-        // Check if user is the author
-        if (post.author.toString() !== req.user._id.toString()) {
+        // Check if user is superadmin or the author
+        const isSuperAdmin = req.user.role === 'admin';
+        const isAuthor = post.author && post.author.toString() === req.user._id.toString();
+
+        if (!isSuperAdmin && !isAuthor) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this post',

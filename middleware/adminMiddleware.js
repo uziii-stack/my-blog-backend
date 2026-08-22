@@ -43,13 +43,13 @@ exports.adminOnly = async (req, res, next) => {
             });
         }
 
-        // Check if user has admin role
-        // WHY: Never trust frontend - always validate role from database
-        if (req.user.role !== 'admin') {
-            console.warn(`🚫 Access denied: User ${req.user.email} (role: ${req.user.role}) attempted to access admin route ${req.originalUrl}`);
+        // Check if user has admin or editor role
+        // WHY: Allow both admins and editors to access post management
+        if (req.user.role !== 'admin' && req.user.role !== 'editor') {
+            console.warn(`🚫 Access denied: User ${req.user.email} (role: ${req.user.role}) attempted to access route ${req.originalUrl}`);
             return res.status(403).json({
                 success: false,
-                message: 'Access denied. Admin privileges required.'
+                message: 'Access denied. Privileges required.'
             });
         }
 
@@ -65,3 +65,36 @@ exports.adminOnly = async (req, res, next) => {
         });
     }
 };
+
+/**
+ * Editor or Admin Middleware
+ * 
+ * Ensures user has either 'admin' or 'editor' role to access CMS routes
+ */
+exports.editorOrAdmin = async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Not authorized to access this route'
+            });
+        }
+
+        if (req.user.role !== 'admin' && req.user.role !== 'editor') {
+            console.warn(`🚫 Access denied: User ${req.user.email} (role: ${req.user.role}) attempted to access CMS route ${req.originalUrl}`);
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Editor or Admin privileges required.'
+            });
+        }
+
+        next();
+    } catch (error) {
+        console.error('❌ Editor/Admin middleware error:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during authorization check'
+        });
+    }
+};
+
