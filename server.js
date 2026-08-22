@@ -4,7 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const connectDB = require('./config/db');
 
-// Initialize express app
+// Initialize express app - Multi-author Blog CMS
 const app = express();
 
 // Connect to database
