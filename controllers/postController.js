@@ -305,9 +305,33 @@ exports.getPost = async (req, res, next) => {
 // @access  Public
 exports.getPostBySlug = async (req, res, next) => {
     try {
-        const post = await Post.findOne({ slug: req.params.slug }).populate(
+        const { author } = req.query;
+        let query = { slug: req.params.slug };
+
+        // Optional author isolation for slug queries
+        let matchedAuthorUser = null;
+        if (author) {
+            const authorQuery = author.trim();
+            const authorUser = await User.findOne({
+                $or: [
+                    { email: authorQuery.toLowerCase() },
+                    { email: new RegExp(authorQuery, 'i') },
+                    { name: new RegExp(authorQuery, 'i') },
+                    ...(authorQuery.toLowerCase() === 'admin' ? [{ role: 'admin' }] : [])
+                ]
+            });
+            if (authorUser) {
+                matchedAuthorUser = authorUser;
+                query.$or = [
+                    { createdAt: { $lt: LEGACY_CUTOFF } },
+                    { author: authorUser._id }
+                ];
+            }
+        }
+
+        const post = await Post.findOne(query).populate(
             'author',
-            'name'
+            'name email'
         );
 
         if (!post) {
