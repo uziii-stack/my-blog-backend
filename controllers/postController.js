@@ -100,8 +100,10 @@ exports.getAllPosts = async (req, res, next) => {
         }
 
         // Author filter support with historical posts preservation for both portfolios
+        let matchedAuthorUser = null;
         if (author) {
             if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
+                matchedAuthorUser = await User.findById(author);
                 query.$or = [
                     { createdAt: { $lt: LEGACY_CUTOFF } },
                     { author: author }
@@ -115,6 +117,7 @@ exports.getAllPosts = async (req, res, next) => {
                     ]
                 });
                 if (authorUser) {
+                    matchedAuthorUser = authorUser;
                     query.$or = [
                         { createdAt: { $lt: LEGACY_CUTOFF } },
                         { author: authorUser._id }
@@ -157,22 +160,32 @@ exports.getAllPosts = async (req, res, next) => {
             .limit(finalLimit);
 
         // Maintain response format for both legacy and new consumers
-        const formattedPosts = posts.map(post => ({
-            id: post._id,
-            _id: post._id,
-            title: post.title,
-            slug: post.slug,
-            excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
-            content: post.content,
-            category: post.category,
-            tags: post.category ? [post.category] : [],
-            coverImage: post.image,
-            image: post.image,
-            published: post.published,
-            publishedAt: post.createdAt,
-            createdAt: post.createdAt,
-            author: post.author
-        }));
+        const formattedPosts = posts.map(post => {
+            let authorObj = post.author;
+            if (post.createdAt < LEGACY_CUTOFF && matchedAuthorUser) {
+                authorObj = {
+                    _id: matchedAuthorUser._id,
+                    name: matchedAuthorUser.name,
+                    email: matchedAuthorUser.email
+                };
+            }
+            return {
+                id: post._id,
+                _id: post._id,
+                title: post.title,
+                slug: post.slug,
+                excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
+                content: post.content,
+                category: post.category,
+                tags: post.category ? [post.category] : [],
+                coverImage: post.image,
+                image: post.image,
+                published: post.published,
+                publishedAt: post.createdAt,
+                createdAt: post.createdAt,
+                author: authorObj
+            };
+        });
 
         res.status(200).json({
             success: true,
