@@ -102,18 +102,20 @@ exports.getAllPosts = async (req, res, next) => {
         // Author filter support with historical posts preservation for both portfolios
         let matchedAuthorUser = null;
         if (author) {
-            if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
-                matchedAuthorUser = await User.findById(author);
+            const authorQuery = author.trim();
+            if (mongoose.Types.ObjectId.isValid(authorQuery) && authorQuery.length === 24) {
+                matchedAuthorUser = await User.findById(authorQuery);
                 query.$or = [
                     { createdAt: { $lt: LEGACY_CUTOFF } },
-                    { author: author }
+                    { author: authorQuery }
                 ];
             } else {
                 const authorUser = await User.findOne({
                     $or: [
-                        { email: author.trim().toLowerCase() },
-                        { name: new RegExp(`^${author.trim()}$`, 'i') },
-                        { name: new RegExp(author.trim(), 'i') }
+                        { email: authorQuery.toLowerCase() },
+                        { email: new RegExp(authorQuery, 'i') },
+                        { name: new RegExp(authorQuery, 'i') },
+                        ...(authorQuery.toLowerCase() === 'admin' ? [{ role: 'admin' }] : [])
                     ]
                 });
                 if (authorUser) {
@@ -208,17 +210,19 @@ exports.getLatestPosts = async (req, res, next) => {
 
         // Optional author filter with historical posts preservation
         if (author) {
-            if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
+            const authorQuery = author.trim();
+            if (mongoose.Types.ObjectId.isValid(authorQuery) && authorQuery.length === 24) {
                 query.$or = [
                     { createdAt: { $lt: LEGACY_CUTOFF } },
-                    { author: author }
+                    { author: authorQuery }
                 ];
             } else {
                 const authorUser = await User.findOne({
                     $or: [
-                        { email: author.trim().toLowerCase() },
-                        { name: new RegExp(`^${author.trim()}$`, 'i') },
-                        { name: new RegExp(author.trim(), 'i') }
+                        { email: authorQuery.toLowerCase() },
+                        { email: new RegExp(authorQuery, 'i') },
+                        { name: new RegExp(authorQuery, 'i') },
+                        ...(authorQuery.toLowerCase() === 'admin' ? [{ role: 'admin' }] : [])
                     ]
                 });
                 if (authorUser) {
