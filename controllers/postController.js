@@ -82,6 +82,9 @@ exports.createPost = async (req, res, next) => {
     }
 };
 
+// Cut-off date for historical posts (Aug 22, 2026)
+const LEGACY_CUTOFF = new Date('2026-08-22T00:00:00.000Z');
+
 // @desc    Get all posts
 // @route   GET /api/posts
 // @access  Public
@@ -96,10 +99,13 @@ exports.getAllPosts = async (req, res, next) => {
             query.category = category;
         }
 
-        // Author filter support (by ObjectId, email, or name)
+        // Author filter support with historical posts preservation for both portfolios
         if (author) {
             if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
-                query.author = author;
+                query.$or = [
+                    { createdAt: { $lt: LEGACY_CUTOFF } },
+                    { author: author }
+                ];
             } else {
                 const authorUser = await User.findOne({
                     $or: [
@@ -109,7 +115,10 @@ exports.getAllPosts = async (req, res, next) => {
                     ]
                 });
                 if (authorUser) {
-                    query.author = authorUser._id;
+                    query.$or = [
+                        { createdAt: { $lt: LEGACY_CUTOFF } },
+                        { author: authorUser._id }
+                    ];
                 } else {
                     query.author = new mongoose.Types.ObjectId(); // matches nothing
                 }
@@ -133,7 +142,7 @@ exports.getAllPosts = async (req, res, next) => {
                     query.author = req.user._id;
                 }
             } else {
-                query.$or = [{ published: true }, { author: req.user._id }];
+                query.published = true;
             }
         } else {
             query.published = true;
@@ -184,10 +193,13 @@ exports.getLatestPosts = async (req, res, next) => {
         const { author } = req.query;
         let query = { published: true };
 
-        // Optional author filter support
+        // Optional author filter with historical posts preservation
         if (author) {
             if (mongoose.Types.ObjectId.isValid(author) && author.length === 24) {
-                query.author = author;
+                query.$or = [
+                    { createdAt: { $lt: LEGACY_CUTOFF } },
+                    { author: author }
+                ];
             } else {
                 const authorUser = await User.findOne({
                     $or: [
@@ -197,7 +209,10 @@ exports.getLatestPosts = async (req, res, next) => {
                     ]
                 });
                 if (authorUser) {
-                    query.author = authorUser._id;
+                    query.$or = [
+                        { createdAt: { $lt: LEGACY_CUTOFF } },
+                        { author: authorUser._id }
+                    ];
                 } else {
                     query.author = new mongoose.Types.ObjectId();
                 }
