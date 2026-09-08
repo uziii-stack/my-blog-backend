@@ -189,7 +189,7 @@ exports.getAllPosts = async (req, res, next) => {
                 _id: post._id,
                 title: post.title,
                 slug: post.slug,
-                excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
+                excerpt: post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '',
                 content: post.content,
                 category: post.category,
                 tags: post.category ? [post.category] : [],
@@ -258,7 +258,7 @@ exports.getLatestPosts = async (req, res, next) => {
         const formattedPosts = posts.map(post => ({
             _id: post._id,
             title: post.title,
-            excerpt: post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...',
+            excerpt: post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '',
             image: post.image,
             createdAt: post.createdAt,
             slug: post.slug
@@ -368,7 +368,7 @@ exports.getPostBySlug = async (req, res, next) => {
 
         // SEO & OG Fallback Logic
         const ogTitle = post.ogTitle || post.title;
-        const ogDescription = post.ogDescription || (post.content.substring(0, 150).replace(/(\r\n|\n|\r)/gm, " ") + '...');
+        const ogDescription = post.ogDescription || (post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '');
         const ogImage = post.ogImage || post.image;
         const twitterCardType = post.twitterCardType || 'summary_large_image';
 
