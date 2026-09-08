@@ -92,11 +92,11 @@ exports.getAllPosts = async (req, res, next) => {
     try {
         const { category, published, limit, author } = req.query;
 
-        // Build query
-        let query = {};
+        // Build query conditions
+        const conditions = [];
 
         if (category) {
-            query.category = category;
+            conditions.push({ category });
         }
 
         // Author filter support with historical posts preservation for both portfolios
@@ -105,10 +105,12 @@ exports.getAllPosts = async (req, res, next) => {
             const authorQuery = author.trim();
             if (mongoose.Types.ObjectId.isValid(authorQuery) && authorQuery.length === 24) {
                 matchedAuthorUser = await User.findById(authorQuery);
-                query.$or = [
-                    { createdAt: { $lt: LEGACY_CUTOFF } },
-                    { author: authorQuery }
-                ];
+                conditions.push({
+                    $or: [
+                        { createdAt: { $lt: LEGACY_CUTOFF } },
+                        { author: authorQuery }
+                    ]
+                });
             } else {
                 const authorUser = await User.findOne({
                     $or: [
@@ -120,38 +122,49 @@ exports.getAllPosts = async (req, res, next) => {
                 });
                 if (authorUser) {
                     matchedAuthorUser = authorUser;
-                    query.$or = [
-                        { createdAt: { $lt: LEGACY_CUTOFF } },
-                        { author: authorUser._id }
-                    ];
+                    conditions.push({
+                        $or: [
+                            { createdAt: { $lt: LEGACY_CUTOFF } },
+                            { author: authorUser._id }
+                        ]
+                    });
                 } else {
-                    query.author = new mongoose.Types.ObjectId(); // matches nothing
+                    conditions.push({ author: new mongoose.Types.ObjectId() }); // matches nothing
                 }
             }
         }
 
         // Visibility control:
-        // - Admin: can see all posts (published and drafts)
+        // - Admin: can see all posts (published and drafts) unless published param specified
         // - Editor: can see all published posts + their own drafts
         // - Public: can only see published posts
         if (!req.user) {
-            query.published = true;
+            conditions.push({ published: true });
         } else if (req.user.role === 'admin') {
             if (published !== undefined) {
-                query.published = published === 'true';
+                conditions.push({ published: published === 'true' });
             }
         } else if (req.user.role === 'editor') {
             if (published !== undefined) {
-                query.published = published === 'true';
-                if (published === 'false') {
-                    query.author = req.user._id;
+                if (published === 'true') {
+                    conditions.push({ published: true });
+                } else {
+                    conditions.push({ published: false, author: req.user._id });
                 }
             } else {
-                query.published = true;
+                // Editor viewing all posts: see all published posts + their own drafts
+                conditions.push({
+                    $or: [
+                        { published: true },
+                        { author: req.user._id }
+                    ]
+                });
             }
         } else {
-            query.published = true;
+            conditions.push({ published: true });
         }
+
+        const query = conditions.length > 0 ? { $and: conditions } : {};
 
         // Apply limit if provided
         const finalLimit = limit ? parseInt(limit) : 0;
@@ -407,7 +420,8 @@ exports.updatePost = async (req, res, next) => {
 
         // Check if user is superadmin or the author
         const isSuperAdmin = req.user.role === 'admin';
-        const isAuthor = post.author && post.author.toString() === req.user._id.toString();
+        const postAuthorId = post.author ? (post.author._id || post.author) : null;
+        const isAuthor = postAuthorId && req.user && req.user._id && postAuthorId.toString() === req.user._id.toString();
 
         if (!isSuperAdmin && !isAuthor) {
             return res.status(403).json({
@@ -479,7 +493,8 @@ exports.deletePost = async (req, res, next) => {
 
         // Check if user is superadmin or the author
         const isSuperAdmin = req.user.role === 'admin';
-        const isAuthor = post.author && post.author.toString() === req.user._id.toString();
+        const postAuthorId = post.author ? (post.author._id || post.author) : null;
+        const isAuthor = postAuthorId && req.user && req.user._id && postAuthorId.toString() === req.user._id.toString();
 
         if (!isSuperAdmin && !isAuthor) {
             return res.status(403).json({
