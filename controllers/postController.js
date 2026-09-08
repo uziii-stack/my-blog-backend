@@ -526,11 +526,6 @@ exports.getPostBySlug = async (req, res, next) => {
         next(error);
     }
 };
-    } catch (error) {
-        console.error('Error fetching post by slug:', error.message);
-        next(error);
-    }
-};
 
 // @desc    Update post
 // @route   PUT /api/posts/:id
