@@ -85,6 +85,21 @@ exports.createPost = async (req, res, next) => {
 // Cut-off date for historical posts (Aug 22, 2026)
 const LEGACY_CUTOFF = new Date('2026-08-22T00:00:00.000Z');
 
+/**
+ * Helper to generate a clean, safe, plain-text excerpt for any client
+ * Strips HTML tags, decodes common entities, and removes excess whitespace
+ */
+const cleanExcerpt = (content, maxLength = 150) => {
+    if (!content) return '';
+    const plain = content
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&[a-z0-9#]+;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (plain.length <= maxLength) return plain;
+    return plain.substring(0, maxLength) + '...';
+};
+
 // @desc    Get all posts
 // @route   GET /api/posts
 // @access  Public
@@ -176,10 +191,22 @@ exports.getAllPosts = async (req, res, next) => {
 
         // Maintain response format for both legacy and new consumers
         const formattedPosts = posts.map(post => {
-            let authorObj = post.author;
+            let authorObj = post.author ? {
+                _id: post.author._id || post.author,
+                id: post.author._id || post.author,
+                name: post.author.name || 'Author',
+                email: post.author.email || ''
+            } : {
+                _id: '',
+                id: '',
+                name: 'Author',
+                email: ''
+            };
+
             if (post.createdAt < LEGACY_CUTOFF && matchedAuthorUser) {
                 authorObj = {
                     _id: matchedAuthorUser._id,
+                    id: matchedAuthorUser._id,
                     name: matchedAuthorUser.name,
                     email: matchedAuthorUser.email
                 };
@@ -189,7 +216,7 @@ exports.getAllPosts = async (req, res, next) => {
                 _id: post._id,
                 title: post.title,
                 slug: post.slug,
-                excerpt: post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '',
+                excerpt: cleanExcerpt(post.content, 150),
                 content: post.content,
                 category: post.category,
                 tags: post.category ? [post.category] : [],
@@ -198,6 +225,7 @@ exports.getAllPosts = async (req, res, next) => {
                 published: post.published,
                 publishedAt: post.createdAt,
                 createdAt: post.createdAt,
+                date: post.createdAt,
                 author: authorObj
             };
         });
@@ -206,6 +234,7 @@ exports.getAllPosts = async (req, res, next) => {
             success: true,
             count: formattedPosts.length,
             posts: formattedPosts,
+            data: formattedPosts
         });
     } catch (error) {
         console.error('Error fetching posts:', error.message);
@@ -222,9 +251,11 @@ exports.getLatestPosts = async (req, res, next) => {
         let query = { published: true };
 
         // Optional author filter with historical posts preservation
+        let matchedAuthorUser = null;
         if (author) {
             const authorQuery = author.trim();
             if (mongoose.Types.ObjectId.isValid(authorQuery) && authorQuery.length === 24) {
+                matchedAuthorUser = await User.findById(authorQuery);
                 query.$or = [
                     { createdAt: { $lt: LEGACY_CUTOFF } },
                     { author: authorQuery }
@@ -239,6 +270,7 @@ exports.getLatestPosts = async (req, res, next) => {
                     ]
                 });
                 if (authorUser) {
+                    matchedAuthorUser = authorUser;
                     query.$or = [
                         { createdAt: { $lt: LEGACY_CUTOFF } },
                         { author: authorUser._id }
@@ -250,19 +282,50 @@ exports.getLatestPosts = async (req, res, next) => {
         }
 
         const posts = await Post.find(query)
+            .populate('author', 'name email')
             .sort({ createdAt: -1 })
-            .limit(3)
-            .select('_id title content image createdAt slug');
+            .limit(3);
 
         // Transform for a clean "data" contract as requested
-        const formattedPosts = posts.map(post => ({
-            _id: post._id,
-            title: post.title,
-            excerpt: post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '',
-            image: post.image,
-            createdAt: post.createdAt,
-            slug: post.slug
-        }));
+        const formattedPosts = posts.map(post => {
+            let authorObj = post.author ? {
+                _id: post.author._id || post.author,
+                id: post.author._id || post.author,
+                name: post.author.name || 'Author',
+                email: post.author.email || ''
+            } : {
+                _id: '',
+                id: '',
+                name: 'Author',
+                email: ''
+            };
+
+            if (post.createdAt < LEGACY_CUTOFF && matchedAuthorUser) {
+                authorObj = {
+                    _id: matchedAuthorUser._id,
+                    id: matchedAuthorUser._id,
+                    name: matchedAuthorUser.name,
+                    email: matchedAuthorUser.email
+                };
+            }
+
+            return {
+                id: post._id,
+                _id: post._id,
+                title: post.title,
+                slug: post.slug,
+                excerpt: cleanExcerpt(post.content, 150),
+                content: post.content,
+                category: post.category,
+                tags: post.category ? [post.category] : [],
+                coverImage: post.image,
+                image: post.image,
+                createdAt: post.createdAt,
+                publishedAt: post.createdAt,
+                date: post.createdAt,
+                author: authorObj
+            };
+        });
 
         res.status(200).json({
             success: true,
@@ -281,7 +344,7 @@ exports.getPost = async (req, res, next) => {
     try {
         const post = await Post.findById(req.params.id).populate(
             'author',
-            'name'
+            'name email'
         );
 
         if (!post) {
@@ -303,9 +366,45 @@ exports.getPost = async (req, res, next) => {
             });
         }
 
+        const authorObj = post.author ? {
+            _id: post.author._id || post.author,
+            id: post.author._id || post.author,
+            name: post.author.name || 'Author',
+            email: post.author.email || ''
+        } : {
+            _id: '',
+            id: '',
+            name: 'Author',
+            email: ''
+        };
+
+        const postData = {
+            _id: post._id,
+            id: post._id,
+            title: post.title,
+            slug: post.slug,
+            excerpt: cleanExcerpt(post.content, 150),
+            content: post.content,
+            coverImage: post.image,
+            image: post.image,
+            category: post.category,
+            tags: post.category ? [post.category] : [],
+            published: post.published,
+            publishedAt: post.createdAt,
+            createdAt: post.createdAt,
+            date: post.createdAt,
+            author: authorObj,
+            ogTitle: post.ogTitle || post.title,
+            ogDescription: post.ogDescription || cleanExcerpt(post.content, 150),
+            ogImage: post.ogImage || post.image,
+            twitterCardType: post.twitterCardType || 'summary_large_image',
+            canonicalUrl: post.canonicalUrl || post.slug
+        };
+
         res.status(200).json({
             success: true,
-            post: post, // Frontend expects 'post' key for single post
+            post: postData,
+            data: postData
         });
     } catch (error) {
         console.error('Error fetching post:', error.message);
@@ -366,38 +465,67 @@ exports.getPostBySlug = async (req, res, next) => {
             });
         }
 
+        let authorObj = post.author ? {
+            _id: post.author._id || post.author,
+            id: post.author._id || post.author,
+            name: post.author.name || 'Author',
+            email: post.author.email || ''
+        } : {
+            _id: '',
+            id: '',
+            name: 'Author',
+            email: ''
+        };
+
+        if (post.createdAt < LEGACY_CUTOFF && matchedAuthorUser) {
+            authorObj = {
+                _id: matchedAuthorUser._id,
+                id: matchedAuthorUser._id,
+                name: matchedAuthorUser.name,
+                email: matchedAuthorUser.email
+            };
+        }
+
         // SEO & OG Fallback Logic
         const ogTitle = post.ogTitle || post.title;
-        const ogDescription = post.ogDescription || (post.content ? (post.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150) + '...') : '');
+        const ogDescription = post.ogDescription || cleanExcerpt(post.content, 150);
         const ogImage = post.ogImage || post.image;
         const twitterCardType = post.twitterCardType || 'summary_large_image';
-
-        // Note: canonicalUrl is returned as slug only to support multi-client deployments.
-        // Frontends should construct the full URL based on their own domain.
         const canonicalUrl = post.canonicalUrl || post.slug;
+
+        const postData = {
+            _id: post._id,
+            id: post._id,
+            title: post.title,
+            slug: post.slug,
+            excerpt: cleanExcerpt(post.content, 150),
+            content: post.content,
+            coverImage: post.image,
+            image: post.image,
+            category: post.category,
+            tags: post.category ? [post.category] : [],
+            published: post.published,
+            publishedAt: post.createdAt,
+            createdAt: post.createdAt,
+            date: post.createdAt,
+            author: authorObj,
+            ogTitle,
+            ogDescription,
+            ogImage,
+            twitterCardType,
+            canonicalUrl
+        };
 
         res.status(200).json({
             success: true,
-            post: {
-                _id: post._id,
-                title: post.title,
-                slug: post.slug,
-                content: post.content,
-                coverImage: post.image,
-                publishedAt: post.createdAt,
-                createdAt: post.createdAt,
-                date: post.createdAt,
-                author: {
-                    name: post.author ? post.author.name : 'Unknown Author'
-                },
-                category: post.category,
-                ogTitle,
-                ogDescription,
-                ogImage,
-                twitterCardType,
-                canonicalUrl
-            }
+            post: postData,
+            data: postData
         });
+    } catch (error) {
+        console.error('Error fetching post by slug:', error.message);
+        next(error);
+    }
+};
     } catch (error) {
         console.error('Error fetching post by slug:', error.message);
         next(error);
